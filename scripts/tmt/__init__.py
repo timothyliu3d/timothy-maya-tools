@@ -1,4 +1,8 @@
+import re
+
+import maya.api.OpenMaya as om
 import maya.cmds as cmds
+import maya.mel as mel
 
 
 def remove_unknown_plugins():
@@ -98,3 +102,56 @@ def set_drawing_overrides(
                 cmds.setAttr(f"{nodename}.overrideColorA", opacity)
         else:
             cmds.setAttr(f"{nodename}.overrideColor", color)
+
+
+def split_nodeattr(name: str) -> list[str]:
+    node, attr = name.split(".", maxsplit=1)
+    return [node] + re.findall(r"[^.\[:\]]+", attr)
+
+
+def get_msl_of(*names: str) -> om.MSelectionList:
+    msl = om.MSelectionList()
+    for name in names:
+        try:
+            msl.add(name)
+        except RuntimeError:
+            dupes = cmds.ls(name)
+            dupes_msg = dupes[:5]
+            if len(dupes_msg) != len(dupes):
+                dupes_msg.append("...")
+            dupes_msg = "\n".join(dupes_msg)
+            raise ValueError(
+                f"Non-unique or non-existent name: '{name}'"
+                f"\n{len(dupes)} names found:"
+                f"\n{dupes_msg}"
+            )
+    return msl
+
+
+def as_mplug(nodeattr: str) -> om.MPlug | None:
+    if "." not in nodeattr:
+        return None
+
+    # Using MSelectionList.getPlug() raises TypeError on some attributes.
+    # Have to use MFnDependencyNode.findPlug() instead.
+    # Known versions: 2024.2, 2025.2
+    nodename, attrname = nodeattr.split(".", maxsplit=1)
+    if attrname in ["rotatePivot", "scalePivot"]:
+        msl = get_msl_of(nodename)
+        mobj = msl.getDependNode(0)
+        fn = om.MFnDependencyNode(mobj)
+        mplug = fn.findPlug(attrname, False)
+
+    else:
+        msl = get_msl_of(nodeattr)
+        try:
+            mplug = msl.getPlug(0)
+        except TypeError:
+            return None
+
+    return mplug
+
+
+def get_next_free_multi_index(nodeattr, start_index=0):
+    next_free_index = mel.eval(f"getNextFreeMultiIndex {nodeattr} {start_index}")
+    return f"{nodeattr}[{next_free_index}]"
