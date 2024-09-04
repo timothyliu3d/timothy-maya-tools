@@ -21,11 +21,11 @@ def prioritize_relative_filepaths(enable=True, strict=False):
         cmds.optionVar(intValue=(only_allow_relative, 0))
 
 
-def get_wireframe_color(nodename: str) -> int | tuple[float, float, float] | None:
+def get_wireframe_color(nodename: str) -> int | tuple[float, float, float]:
     mode = cmds.getAttr(f"{nodename}.useObjectColor")
 
     if is_default := mode == 0:
-        return None
+        return 0
 
     elif is_index := mode == 1:
         color = cmds.getAttr(f"{nodename}.objectColor")
@@ -40,9 +40,7 @@ def get_wireframe_color(nodename: str) -> int | tuple[float, float, float] | Non
     return color
 
 
-def set_wireframe_color(
-    nodename: str, color: int | tuple[float, float, float] | None = None
-):
+def set_wireframe_color(nodename: str, color: int | tuple[float, float, float] = 0):
     if color is None:
         cmds.color(nodename)  # restores default color
     elif isinstance(color, int):
