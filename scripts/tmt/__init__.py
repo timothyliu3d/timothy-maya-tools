@@ -55,39 +55,46 @@ def set_drawing_overrides(
     normal=False,
     template=False,
     reference=False,
-    boundingbox=False,
-    shading=True,
-    texturing=True,
-    playback=True,
-    visible=True,
-    color: int | tuple[float, float, float] = None,
-    opacity=1.0,
+    boundingbox: bool = None,
+    shading: bool = None,
+    texturing: bool = None,
+    playback: bool = None,
+    visible: bool = None,
+    color: int | tuple[float, float, float] | None = None,
+    opacity: float = None,
 ):
     cmds.setAttr(f"{nodename}.overrideEnabled", enable)
 
-    if not any([normal, template, reference]):
-        normal = True
+    displaytype_args = [normal, template, reference]
+    if sum(displaytype_args) not in [0, 1]:
+        raise ValueError("Mutually exclusive parameters: normal, template, reference")
+    if sum(displaytype_args) == 1:
+        displaytype = displaytype_args.index(True)
+        cmds.setAttr(f"{nodename}.overrideDisplayType", displaytype)
 
-    if sum([normal, template, reference]) != 1:
-        raise ValueError("Mutually exclusive: normal, template, reference")
+    if boundingbox is not None:
+        levelofdetail = {False: 0, True: 1}[boundingbox]
+        cmds.setAttr(f"{nodename}.overrideLevelOfDetail", levelofdetail)
 
-    displaytype = [normal, template, reference].index(True)
-    cmds.setAttr(f"{nodename}.overrideDisplayType", displaytype)
+    if shading is not None:
+        cmds.setAttr(f"{nodename}.overrideShading", shading)
 
-    levelofdetail = {False: 0, True: 1}[boundingbox]
-    cmds.setAttr(f"{nodename}.overrideLevelOfDetail", levelofdetail)
+    if texturing is not None:
+        cmds.setAttr(f"{nodename}.overrideTexturing", texturing)
 
-    cmds.setAttr(f"{nodename}.overrideShading", shading)
-    cmds.setAttr(f"{nodename}.overrideTexturing", texturing)
-    cmds.setAttr(f"{nodename}.overridePlayback", playback)
-    cmds.setAttr(f"{nodename}.overrideVisibility", visible)
+    if playback is not None:
+        cmds.setAttr(f"{nodename}.overridePlayback", playback)
 
-    if color is not None:
-        if isinstance(color, int):
-            cmds.setAttr(f"{nodename}.overrideRGBColors", False)
-            cmds.setAttr(f"{nodename}.overrideColor", color)
+    if visible is not None:
+        cmds.setAttr(f"{nodename}.overrideVisibility", visible)
 
-        elif isinstance(color, tuple):
-            cmds.setAttr(f"{nodename}.overrideRGBColors", True)
+    if isinstance(color, (int, tuple)):
+        color_is_rgb = isinstance(color, tuple)
+        cmds.setAttr(f"{nodename}.overrideRGBColors", color_is_rgb)
+
+        if color_is_rgb:
             cmds.setAttr(f"{nodename}.overrideColorRGB", *color)
-            cmds.setAttr(f"{nodename}.overrideColorA", opacity)
+            if opacity is not None:
+                cmds.setAttr(f"{nodename}.overrideColorA", opacity)
+        else:
+            cmds.setAttr(f"{nodename}.overrideColor", color)
